@@ -1,23 +1,40 @@
+use std::thread;
+use core::time;
+use std::fs::File;
+use std::io::BufReader;
+use rodio::{source, Decoder, OutputStream, OutputStreamHandle, Sink};
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
-    label: String,
+    volume: f32,
 
+    #[serde(skip)]
+    _stream: OutputStream,
+    #[serde(skip)]
+    stream_handle: OutputStreamHandle,
     #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+    prim_sink: rodio::Sink
+
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let newsink = Sink::try_new(&stream_handle).unwrap();
+
         Self {
             // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            volume: 2.7,
+            _stream: _stream,
+            stream_handle: stream_handle,
+            prim_sink: newsink,
         }
     }
 }
+
 
 impl TemplateApp {
     /// Called once before the first frame.
@@ -67,24 +84,18 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.add(egui::Slider::new(&mut self.volume, 0.0..=10.0)
+                .text("Volume")
+                .show_value(false));
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
+            let play_pause_button = egui::Button::new("play/pause");
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
+            if ui.add(play_pause_button).clicked() {
+                let file = BufReader::new(File::open("D:\\Coding\\Music\\Lena Raine\\Celeste  Farewell Original Soundtrack\\05 Crash.wav").unwrap());
+                let source = Decoder::new(file).unwrap();
+                self.prim_sink.append(source);
             }
-
             ui.separator();
-
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe(ui);
@@ -107,3 +118,34 @@ fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
         ui.label(".");
     });
 }
+
+
+// class SongWrapper:
+// //       def __init__(self, stream_handle: OutputStreamHandle, ...): ...
+// pub struct SongWrapper {
+//     stream_handle: OutputStreamHandle,
+//     source: Decoder<BufReader<File>>
+// }
+
+// impl SongWrapper {
+//     pub fn new(stream_handle: OutputStreamHandle, source: Decoder<BufReader<File>>) -> SongWrapper {
+//         SongWrapper{stream_handle, source}
+//     }
+
+//     pub fn play(&mut self) {
+//         let mut samples: Vec<f32> = self.source.map(|x| x / (2*2*2*2*2*2*2*2*2*2*2*2*2*2*2*2));
+//         self.stream_handle.play_raw(self.source.convert_samples()).unwrap();
+//     }
+
+//     pub fn stop(&mut self) {
+//         todo!();
+//     }
+// }
+
+
+// fn getSongWrapper() -> SongWrapper {
+//     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+//     let file = BufReader::new(File::open("D:/Coding/Music/Lena Raine/Celeste  Farewell Original Soundtrack/01 The Empty Space Above.wav").unwrap());
+//     let source = Decoder::new(file).unwrap();
+//     SongWrapper::new(stream_handle, source)
+// }
