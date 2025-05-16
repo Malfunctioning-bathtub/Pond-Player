@@ -46,7 +46,6 @@ impl TemplateApp {
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
         // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
@@ -61,14 +60,10 @@ impl eframe::App for TemplateApp {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
+    /// Called every time the window is repainted
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
+        //Top menu bar containing quit option and theme toggle
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| { 
             egui::menu::bar(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
@@ -85,13 +80,15 @@ impl eframe::App for TemplateApp {
             });
         });
 
+        // The central panel the region left after adding TopPanels and SidePanels
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+            //volume slider
             ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0)
                 .text("Volume")
                 .show_value(false));
             self.prim_sink.set_volume(self.volume);
 
+            //play/pause button
             if ui.button("play/pause").clicked() {
                 if self.prim_sink.is_paused() {
                     self.prim_sink.play();
