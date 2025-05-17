@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
-use rodio::{source, Decoder, OutputStream, OutputStreamHandle, Sink};
-
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -65,28 +64,31 @@ impl eframe::App for TemplateApp {
         //Top menu bar containing quit option and theme toggle
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| { 
             egui::menu::bar(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
-
-                egui::widgets::global_theme_preference_buttons(ui);
+                //file menu (idk why quit is in this but i dont have anywhere else to put it yet)
+                ui.menu_button("File", |ui| {
+                    if ui.button("Quit").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                //Theme switch button
+                egui::widgets::global_theme_preference_switch(ui);
             });
         });
 
         // The central panel the region left after adding TopPanels and SidePanels
         egui::CentralPanel::default().show(ctx, |ui| {
             //volume slider
-            ui.add(egui::Slider::new(&mut self.volume, 0.0..=1.0)
+            ui.add(egui::Slider::new(&mut self.volume, -60.0..=10.0)
                 .text("Volume")
                 .show_value(false));
-            self.prim_sink.set_volume(self.volume);
+            // conversion from logarithmic to to multiplicative units
+            let linear_volume = (10 as f32).powf(self.volume/(20 as f32));
+            if linear_volume <= 0.001 {
+                self.prim_sink.set_volume(0.0);
+            }
+            else {
+                self.prim_sink.set_volume(linear_volume);
+            }
 
             //play/pause button
             if ui.button("play/pause").clicked() {
@@ -97,6 +99,7 @@ impl eframe::App for TemplateApp {
                     self.prim_sink.pause();
                 }
             }
+            
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
