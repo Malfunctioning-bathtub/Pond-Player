@@ -9,7 +9,7 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 
 pub struct TemplateApp {
     // Example stuff:
-    volume: f32,
+    volume_slider_value: f32,
 
     #[serde(skip)]
     _stream: OutputStream,
@@ -29,14 +29,13 @@ impl Default for TemplateApp {
         launchsink.append(launchsource);
 
         Self {
-            volume: 1.0,
+            volume_slider_value: 1.0,
             _stream: _stream,
             stream_handle: stream_handle,
             prim_sink: launchsink,
         }
     }
 }
-
 
 impl TemplateApp {
     /// Called once before the first frame.
@@ -78,15 +77,16 @@ impl eframe::App for TemplateApp {
         // The central panel the region left after adding TopPanels and SidePanels
         egui::CentralPanel::default().show(ctx, |ui| {
             //volume slider
-            ui.add(egui::Slider::new(&mut self.volume, -60.0..=10.0)
+            ui.add(egui::Slider::new(&mut self.volume_slider_value, -1.25..=1.0)
                 .text("Volume")
                 .show_value(false));
             // conversion from logarithmic to to multiplicative units
-            let linear_volume = (10 as f32).powf(self.volume/(20 as f32));
-            if linear_volume <= 0.001 {
+            if self.volume_slider_value == 0.0 {
                 self.prim_sink.set_volume(0.0);
+                
             }
             else {
+                let linear_volume = 7.0_f32.powf(self.volume_slider_value - 1.0);
                 self.prim_sink.set_volume(linear_volume);
             }
 
@@ -99,7 +99,7 @@ impl eframe::App for TemplateApp {
                     self.prim_sink.pause();
                 }
             }
-            
+
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
