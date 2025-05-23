@@ -1,11 +1,12 @@
 use std::fs::File;
+use std::{collections::HashMap, fs};
 use std::io::BufReader;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-
 
 pub struct TemplateApp {
     // Example stuff:
@@ -17,6 +18,14 @@ pub struct TemplateApp {
     stream_handle: OutputStreamHandle,
     #[serde(skip)]
     prim_sink: rodio::Sink,
+    #[serde(skip)]
+    library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
+    #[serde(skip)]
+    artistreq: String,
+    #[serde(skip)]
+    albumreq: String,
+    #[serde(skip)]
+    songreq: String
 }
 
 impl Default for TemplateApp {
@@ -24,7 +33,12 @@ impl Default for TemplateApp {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let launchsink = Sink::try_new(&stream_handle).unwrap();
         launchsink.pause();
-        let file = BufReader::new(File::open("D:\\Coding\\Music\\Lena Raine\\Celeste  Farewell Original Soundtrack\\05 Crash.wav").unwrap());
+
+        let library_hashmap = serde_json::from_str(&std::fs::read_to_string("assets/library.json").unwrap()).unwrap();
+
+        
+        let file = BufReader::new(fs::File::open("D:/Coding/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
+
         let launchsource = Decoder::new(file).unwrap();
         launchsink.append(launchsource);
 
@@ -33,6 +47,10 @@ impl Default for TemplateApp {
             _stream: _stream,
             stream_handle: stream_handle,
             prim_sink: launchsink,
+            library_hashmap:library_hashmap,
+            artistreq: "femtanyl".to_string(),
+            albumreq: "REACTOR".to_string(),
+            songreq: "M3 N MIN3".to_string()
         }
     }
 }
@@ -77,18 +95,22 @@ impl eframe::App for TemplateApp {
         // The central panel the region left after adding TopPanels and SidePanels
         egui::CentralPanel::default().show(ctx, |ui| {
             //volume slider
-            ui.add(egui::Slider::new(&mut self.volume_slider_value, -1.25..=1.0)
-                .text("Volume")
-                .show_value(false));
+
+            let volslider = egui::Slider::new(&mut self.volume_slider_value, -1.25..=1.0)
+            .text("Volume")
+            .show_value(false);
+
             // conversion from logarithmic to to multiplicative units
-            if self.volume_slider_value == 0.0 {
-                self.prim_sink.set_volume(0.0);
-                
-            }
-            else {
-                let linear_volume = 7.0_f32.powf(self.volume_slider_value - 1.0);
-                self.prim_sink.set_volume(linear_volume);
-            }
+            if ui.add(volslider).changed() {
+                if self.volume_slider_value == 0.0 {
+                    self.prim_sink.set_volume(0.0);
+                    
+                }
+                else {
+                    let linear_volume = 7.0_f32.powf(self.volume_slider_value - 1.0);
+                    self.prim_sink.set_volume(linear_volume);
+                }
+            } 
 
             //play/pause button
             if ui.button("play/pause").clicked() {
@@ -99,6 +121,20 @@ impl eframe::App for TemplateApp {
                     self.prim_sink.pause();
                 }
             }
+
+            ui.add(egui::TextEdit::singleline(&mut self.artistreq));
+            ui.add(egui::TextEdit::singleline(&mut self.albumreq));
+            ui.add(egui::TextEdit::singleline(&mut self.songreq));
+            
+            if ui.button("ok").clicked(){
+                println!("{}", self.library_hashmap[&self.artistreq][&self.albumreq][&self.songreq]);
+                println!("{} {} {}", self.artistreq, self.albumreq, self.songreq);
+                let temp_song_file = BufReader::new(fs::File::open(&self.library_hashmap[&self.artistreq][&self.albumreq][&self.songreq]).unwrap());
+                let temp_source = Decoder::new(temp_song_file).unwrap();
+                self.prim_sink.append(temp_source);
+                self.prim_sink.skip_one();
+            }
+
 
             ui.separator();
 

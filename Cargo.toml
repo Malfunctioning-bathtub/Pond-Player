@@ -1,7 +1,7 @@
 [package]
-name = "eframe_template"
+name = "pond_player"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Malfunctioning Bathtub <malfunctioningbathtub@gmail.com>"]
 edition = "2021"
 include = ["LICENSE-APACHE", "LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.81"
@@ -25,18 +25,12 @@ log = "0.4.27"
 # You only need serde if you want app persistence:
 serde = { version = "1.0.219", features = ["derive"] }
 rodio = "0.20.1"
+serde_json = "1.0.140"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.8"
 
-# web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen-futures = "0.4.50"
-web-sys = "0.3.70"              # to access the DOM (to hide the loading text)
-
-[profile.release]
-opt-level = 2 # fast and small wasm
 
 # Optimize all dependencies even in debug builds:
 [profile.dev.package."*"]

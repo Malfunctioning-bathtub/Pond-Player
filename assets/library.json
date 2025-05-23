@@ -1,0 +1,26 @@
+{
+    "femtanyl": {
+        "CHASER": {
+            "ACT RIGHT": "d:/Coding/Music/Femtanyl/CHASER/01 ACT RIGHT.wav",
+            "P3T": "d:/Coding/Music/Femtanyl/CHASER/02 P3T.wav",
+            "PUSH UR T3MPRR": "d:/Coding/Music/Femtanyl/CHASER/03 PUSH UR T3MPRR.wav",
+            "KATAMARI": "d:/Coding/Music/Femtanyl/CHASER/04 KATAMARI.wav",
+            "MURDER EVERY 1 U KNOW": "d:/Coding/Music/Femtanyl/CHASER/05 MURDER EVERY 1 U KNOW!.wav",
+            "GIRL HELL 1999": "d:/Coding/Music/Femtanyl/CHASER/06 GIRL HELL 1999.wav"
+        },
+        "DOGMATICA": {
+            "DOGMATICA": "d:/Coding/Music/Femtanyl/DOGMATICA/01 DOGMATICA.wav"
+        },
+        "LOVESICK, CANNIBAL!": {
+            "LOVESICK, CANNIBAL!": "d:/Coding/Music/Femtanyl/LOVESICK, CANNIBAL!/01 LOVESICK, CANNIBAL!.wav"
+        },
+        "REACTOR": {
+            "IT'S TIME": "d:/Coding/Music/Femtanyl/REACTOR/01 IT'S TIME.wav",
+            "WEIGHTLESS!": "d:/Coding/Music/Femtanyl/REACTOR/02 WEIGHTLESS!.wav",
+            "DINNER!": "d:/Coding/Music/Femtanyl/REACTOR/03 DINNER!.wav",
+            "M3 N MIN3": "d:/Coding/Music/Femtanyl/REACTOR/04 M3 N MIN3.wav",
+            "ATTACKING VERTICAL": "d:/Coding/Music/Femtanyl/REACTOR/05 ATTACKING VERTICAL.wav",
+            "AND I'M GONE": "d:/Coding/Music/Femtanyl/REACTOR/06 AND I'M GONE.wav"
+        }
+    }
+}
