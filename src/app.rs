@@ -1,7 +1,7 @@
-use std::fs::File;
+use std::time::Duration;
 use std::{collections::HashMap, fs};
 use std::io::BufReader;
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -11,7 +11,10 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 pub struct TemplateApp {
     // Example stuff:
     volume_slider_value: f32,
+    song_progress_slider_value: f32,
 
+    #[serde(skip)]
+    current_song_length: Duration,
     #[serde(skip)]
     _stream: OutputStream,
     #[serde(skip)]
@@ -20,11 +23,9 @@ pub struct TemplateApp {
     prim_sink: rodio::Sink,
     #[serde(skip)]
     library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
-    #[serde(skip)]
+
     artistreq: String,
-    #[serde(skip)]
     albumreq: String,
-    #[serde(skip)]
     songreq: String
 }
 
@@ -40,10 +41,15 @@ impl Default for TemplateApp {
         let file = BufReader::new(fs::File::open("D:/Coding/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
 
         let launchsource = Decoder::new(file).unwrap();
+        let current_song_length = launchsource.total_duration().unwrap();
+
         launchsink.append(launchsource);
 
         Self {
             volume_slider_value: 1.0,
+            song_progress_slider_value: 0.0,
+            current_song_length: current_song_length,
+
             _stream: _stream,
             stream_handle: stream_handle,
             prim_sink: launchsink,
@@ -122,6 +128,19 @@ impl eframe::App for TemplateApp {
                 }
             }
 
+            let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.current_song_length).as_millis() as f32) 
+            .trailing_fill(true)
+            .text("{self.song_progress_slider_value/self.current_song_length.as_millis()}")
+            .show_value(false)
+        );
+
+            if song_progress_slider.changed() {
+                self.prim_sink.try_seek(Duration::from_millis(self.song_progress_slider_value as u64)).unwrap()
+            } 
+
+            self.song_progress_slider_value = self.prim_sink.get_pos().as_millis() as f32;
+
+
             ui.add(egui::TextEdit::singleline(&mut self.artistreq));
             ui.add(egui::TextEdit::singleline(&mut self.albumreq));
             ui.add(egui::TextEdit::singleline(&mut self.songreq));
@@ -131,6 +150,7 @@ impl eframe::App for TemplateApp {
                 println!("{} {} {}", self.artistreq, self.albumreq, self.songreq);
                 let temp_song_file = BufReader::new(fs::File::open(&self.library_hashmap[&self.artistreq][&self.albumreq][&self.songreq]).unwrap());
                 let temp_source = Decoder::new(temp_song_file).unwrap();
+                self.current_song_length = temp_source.total_duration().unwrap();
                 self.prim_sink.append(temp_source);
                 self.prim_sink.skip_one();
             }
