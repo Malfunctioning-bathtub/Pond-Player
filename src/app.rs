@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs};
 use std::io::BufReader;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
+use crate::tools;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,6 +13,7 @@ pub struct TemplateApp {
     // Example stuff:
     volume_slider_value: f32,
     song_progress_slider_value: f32,
+    play_pause_button_text: String,
 
     #[serde(skip)]
     current_song_length: Duration,
@@ -23,6 +25,8 @@ pub struct TemplateApp {
     prim_sink: rodio::Sink,
     #[serde(skip)]
     library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
+    #[serde(skip)]
+    is_first_frame: bool,
 
     artistreq: String,
     albumreq: String,
@@ -49,11 +53,13 @@ impl Default for TemplateApp {
             volume_slider_value: 1.0,
             song_progress_slider_value: 0.0,
             current_song_length: current_song_length,
+            play_pause_button_text: "Play".to_string(),
 
             _stream: _stream,
             stream_handle: stream_handle,
             prim_sink: launchsink,
             library_hashmap:library_hashmap,
+            is_first_frame: true,
             artistreq: "femtanyl".to_string(),
             albumreq: "REACTOR".to_string(),
             songreq: "M3 N MIN3".to_string()
@@ -68,11 +74,10 @@ impl TemplateApp {
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
         // Load previous app state (if any).
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        match cc.storage {
+            Some(storage) => eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default(),
+            None => Default::default()
         }
-
-        Default::default()
     }
 }
 
@@ -102,24 +107,18 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             //volume slider
 
-            let volslider = egui::Slider::new(&mut self.volume_slider_value, -1.25..=1.0)
+            let volslider = ui.add(egui::Slider::new(&mut self.volume_slider_value, -1.25..=1.0)
             .text("Volume")
-            .show_value(false);
+            .show_value(false));
 
             // conversion from logarithmic to to multiplicative units
-            if ui.add(volslider).changed() {
-                if self.volume_slider_value == 0.0 {
-                    self.prim_sink.set_volume(0.0);
-                    
-                }
-                else {
-                    let linear_volume = 7.0_f32.powf(self.volume_slider_value - 1.0);
-                    self.prim_sink.set_volume(linear_volume);
-                }
+            if volslider.changed() {
+                tools::set_volume(&self.prim_sink, self.volume_slider_value);
             } 
 
+            let play_pause_button = ui.add(egui::Button::new(&self.play_pause_button_text));
             //play/pause button
-            if ui.button("play/pause").clicked() {
+            if play_pause_button.clicked() {
                 if self.prim_sink.is_paused() {
                     self.prim_sink.play();
                 }
@@ -130,7 +129,7 @@ impl eframe::App for TemplateApp {
 
             let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.current_song_length).as_millis() as f32) 
             .trailing_fill(true)
-            .text("{self.song_progress_slider_value/self.current_song_length.as_millis()}")
+            .text("Progress")
             .show_value(false)
         );
 
@@ -146,21 +145,23 @@ impl eframe::App for TemplateApp {
             ui.add(egui::TextEdit::singleline(&mut self.songreq));
             
             if ui.button("ok").clicked(){
-                println!("{}", self.library_hashmap[&self.artistreq][&self.albumreq][&self.songreq]);
+                println!("{}", tools::song_details_to_file_path(&self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap));
                 println!("{} {} {}", self.artistreq, self.albumreq, self.songreq);
-                let temp_song_file = BufReader::new(fs::File::open(&self.library_hashmap[&self.artistreq][&self.albumreq][&self.songreq]).unwrap());
+                let temp_song_file = BufReader::new(fs::File::open(tools::song_details_to_file_path(&self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap)).unwrap());
                 let temp_source = Decoder::new(temp_song_file).unwrap();
                 self.current_song_length = temp_source.total_duration().unwrap();
                 self.prim_sink.append(temp_source);
-                self.prim_sink.skip_one();
+                tools::skip(&self.prim_sink, &self.current_song_length);
             }
-
-
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
-            });
+                egui::warn_if_debug_build(ui)});
         });
+        if self.is_first_frame == true {
+            tools::first_frame_setup(&self.prim_sink, self.volume_slider_value);
+            println!("wow");
+            self.is_first_frame = false
+        }
     }
 }
