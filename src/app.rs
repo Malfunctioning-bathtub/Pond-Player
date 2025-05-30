@@ -1,8 +1,6 @@
-use std::time::Duration;
-use std::{collections::HashMap, fs};
-use std::io::BufReader;
+use std::{collections::{HashMap, VecDeque}, io::BufReader, time::Duration, fs};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
-
+use serde_json;
 use crate::tools;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -10,10 +8,11 @@ use crate::tools;
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 
 pub struct TemplateApp {
-    // Example stuff:
     volume_slider_value: f32,
     song_progress_slider_value: f32,
     play_pause_button_text: String,
+
+    queue: VecDeque<String>,
 
     #[serde(skip)]
     current_song_length: Duration,
@@ -54,6 +53,8 @@ impl Default for TemplateApp {
             song_progress_slider_value: 0.0,
             current_song_length: current_song_length,
             play_pause_button_text: "Play".to_string(),
+
+            queue: VecDeque::new(),
 
             _stream: _stream,
             stream_handle: stream_handle,
@@ -139,20 +140,25 @@ impl eframe::App for TemplateApp {
 
             self.song_progress_slider_value = self.prim_sink.get_pos().as_millis() as f32;
 
+            if ui.button("printqueue").clicked() {
+                println!("{:#?}", (self.queue))
+            }
 
             ui.add(egui::TextEdit::singleline(&mut self.artistreq));
             ui.add(egui::TextEdit::singleline(&mut self.albumreq));
             ui.add(egui::TextEdit::singleline(&mut self.songreq));
             
-            if ui.button("ok").clicked(){
-                println!("{}", tools::song_details_to_file_path(&self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap));
-                println!("{} {} {}", self.artistreq, self.albumreq, self.songreq);
-                let temp_song_file = BufReader::new(fs::File::open(tools::song_details_to_file_path(&self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap)).unwrap());
-                let temp_source = Decoder::new(temp_song_file).unwrap();
-                self.current_song_length = temp_source.total_duration().unwrap();
-                self.prim_sink.append(temp_source);
-                tools::skip(&self.prim_sink, &self.current_song_length);
+
+            let append_button = ui.add(egui::Button::new("append to queue"));
+            if append_button.clicked() {
+                tools::append_to_queue(&mut self.queue, &self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap);
             }
+
+            let skip_button = ui.add(egui::Button::new("skip"));
+            if skip_button.clicked() {
+                tools::skip(&self.prim_sink, &mut self.current_song_length, &mut self.queue);
+            }
+
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
