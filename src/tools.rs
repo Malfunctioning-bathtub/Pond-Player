@@ -88,7 +88,7 @@ impl SinkHandler {
         self.queue.push_back(song_path);
     }
     
-    fn song_details_to_file_path(&mut self, album_artist: &String, album: &String, track: &String) -> String {
+    fn song_details_to_file_path(&self, album_artist: &String, album: &String, track: &String) -> String {
         return self.library_hashmap[&album_artist.to_owned()][&album.to_owned()][&track.to_owned()].clone();
     }
     
@@ -100,6 +100,26 @@ impl SinkHandler {
         self.prim_sink.skip_one();
         self.queue.pop_front();
     }
+
+    pub fn song_end_handler(&mut self) {
+        if self.prim_sink.empty() {
+            let temp_song_file = BufReader::new(File::open(self.queue.front().unwrap()).unwrap());
+            let temp_source = Decoder::new(temp_song_file).unwrap();
+            self.current_song_length = temp_source.total_duration().unwrap();
+            self.prim_sink.append(temp_source);
+            self.queue.pop_front();
+        }
+    }
+    
+    pub fn debug_dump(&mut self) {
+        println!("current song length: {}", self.current_song_length.as_micros());
+        println!("queue: {:#?}", self.queue);
+        println!("progress: {}", self.prim_sink.get_pos().as_micros());
+        println!("paused: {}", self.prim_sink.is_paused());
+        println!("{}", self.prim_sink.empty())
+    }
+
+
 }
 
 pub fn first_frame_setup(sink_handler: &mut SinkHandler, volume_slider_value: f32) {

@@ -98,7 +98,7 @@ impl eframe::App for TemplateApp {
             .show_value(false)
         );
 
-            if song_progress_slider.changed() {
+            if song_progress_slider.drag_stopped() {
                 self.prim_sink_handler.handler_try_seek(Duration::from_millis(self.song_progress_slider_value as u64))
             } 
 
@@ -124,14 +124,23 @@ impl eframe::App for TemplateApp {
             }
 
             ui.separator();
-
+            
+            if ui.button("debug").clicked(){
+                self.prim_sink_handler.debug_dump();
+            }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui)});
+            
+            
         });
+        
         if self.is_first_frame == true {
             tools::first_frame_setup(&mut self.prim_sink_handler, self.volume_slider_value);
             println!("wow");
             self.is_first_frame = false
         }
+
+        self.prim_sink_handler.song_end_handler();
+
     }
 }
