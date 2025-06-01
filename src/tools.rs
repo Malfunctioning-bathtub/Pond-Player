@@ -72,7 +72,7 @@ impl SinkHandler {
     }
     
     pub fn handler_try_seek(&mut self, target: Duration) {
-        self.prim_sink.try_seek(target);
+        self.prim_sink.try_seek(target).unwrap();
     }
     
     pub fn get_song_progress(&mut self) -> Duration {
@@ -104,16 +104,4 @@ impl SinkHandler {
 
 pub fn first_frame_setup(sink_handler: &mut SinkHandler, volume_slider_value: f32) {
     sink_handler.set_volume(volume_slider_value);
-}
-
-
-
-
-pub fn set_volume(sink: &rodio::Sink, volume_slider_value: f32) {
-    if volume_slider_value == -1.25{
-        sink.set_volume(0.0);
-    }
-    else {
-        sink.set_volume(7.0_f32.powf(volume_slider_value - 1.0));
-    }
 }
