@@ -8,25 +8,15 @@ use crate::tools;
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 
 pub struct TemplateApp {
+    prim_sink_handler: tools::SinkHandler,
     volume_slider_value: f32,
     song_progress_slider_value: f32,
     play_pause_button_text: String,
-
-    queue: VecDeque<String>,
-
-    #[serde(skip)]
-    current_song_length: Duration,
-    #[serde(skip)]
-    _stream: OutputStream,
-    #[serde(skip)]
-    stream_handle: OutputStreamHandle,
-    #[serde(skip)]
-    prim_sink: rodio::Sink,
-    #[serde(skip)]
-    library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
+    
+    
     #[serde(skip)]
     is_first_frame: bool,
-
+    
     artistreq: String,
     albumreq: String,
     songreq: String
@@ -34,32 +24,13 @@ pub struct TemplateApp {
 
 impl Default for TemplateApp {
     fn default() -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let launchsink = Sink::try_new(&stream_handle).unwrap();
-        launchsink.pause();
-
-        let library_hashmap = serde_json::from_str(&std::fs::read_to_string("assets/library.json").unwrap()).unwrap();
-
-        
-        let file = BufReader::new(fs::File::open("D:/Coding/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
-
-        let launchsource = Decoder::new(file).unwrap();
-        let current_song_length = launchsource.total_duration().unwrap();
-
-        launchsink.append(launchsource);
-
         Self {
             volume_slider_value: 1.0,
             song_progress_slider_value: 0.0,
-            current_song_length: current_song_length,
+            prim_sink_handler: tools::SinkHandler::default(),
             play_pause_button_text: "Play".to_string(),
 
-            queue: VecDeque::new(),
 
-            _stream: _stream,
-            stream_handle: stream_handle,
-            prim_sink: launchsink,
-            library_hashmap:library_hashmap,
             is_first_frame: true,
             artistreq: "femtanyl".to_string(),
             albumreq: "REACTOR".to_string(),
@@ -114,34 +85,29 @@ impl eframe::App for TemplateApp {
 
             // conversion from logarithmic to to multiplicative units
             if volslider.changed() {
-                tools::set_volume(&self.prim_sink, self.volume_slider_value);
+                self.prim_sink_handler.set_volume(self.volume_slider_value);
             } 
 
             let play_pause_button = ui.add(egui::Button::new(&self.play_pause_button_text));
             //play/pause button
             if play_pause_button.clicked() {
-                if self.prim_sink.is_paused() {
-                    self.prim_sink.play();
-                }
-                else {
-                    self.prim_sink.pause();
-                }
+                self.prim_sink_handler.on_play_pause_button_clicked();
             }
 
-            let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.current_song_length).as_millis() as f32) 
+            let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.prim_sink_handler.get_current_song_length()).as_millis() as f32) 
             .trailing_fill(true)
             .text("Progress")
             .show_value(false)
         );
 
             if song_progress_slider.changed() {
-                self.prim_sink.try_seek(Duration::from_millis(self.song_progress_slider_value as u64)).unwrap()
+                self.prim_sink_handler.handler_try_seek(Duration::from_millis(self.song_progress_slider_value as u64))
             } 
 
-            self.song_progress_slider_value = self.prim_sink.get_pos().as_millis() as f32;
+            self.song_progress_slider_value = self.prim_sink_handler.get_song_progress().as_millis() as f32;
 
             if ui.button("printqueue").clicked() {
-                println!("{:#?}", (self.queue))
+                println!("{:#?}", (self.prim_sink_handler.get_queue()))
             }
 
             ui.add(egui::TextEdit::singleline(&mut self.artistreq));
@@ -151,12 +117,12 @@ impl eframe::App for TemplateApp {
 
             let append_button = ui.add(egui::Button::new("append to queue"));
             if append_button.clicked() {
-                tools::append_to_queue(&mut self.queue, &self.artistreq, &self.albumreq, &self.songreq, &self.library_hashmap);
+                self.prim_sink_handler.append_to_queue(&self.artistreq, &self.albumreq, &self.songreq);
             }
 
             let skip_button = ui.add(egui::Button::new("skip"));
             if skip_button.clicked() {
-                tools::skip(&self.prim_sink, &mut self.current_song_length, &mut self.queue);
+                self.prim_sink_handler.skip();
             }
 
             ui.separator();
@@ -165,7 +131,7 @@ impl eframe::App for TemplateApp {
                 egui::warn_if_debug_build(ui)});
         });
         if self.is_first_frame == true {
-            tools::first_frame_setup(&self.prim_sink, self.volume_slider_value);
+            tools::first_frame_setup(&mut self.prim_sink_handler, self.volume_slider_value);
             println!("wow");
             self.is_first_frame = false
         }
