@@ -1,43 +1,44 @@
 use std::time::Duration;
+use crate::sinkhandler;
+use crate::libraryhandler;
 use crate::tools;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 
-pub struct TemplateApp {
-    prim_sink_handler: tools::SinkHandler,
+pub struct PlayerApp {
+    prim_sink_handler: sinkhandler::SinkHandler,
     volume_slider_value: f32,
     song_progress_slider_value: f32,
     play_pause_button_text: String,
     
-    
+    #[serde(skip)]
+    library_handler: libraryhandler::LibraryHandler,
+
     #[serde(skip)]
     is_first_frame: bool,
     
-    artistreq: String,
-    albumreq: String,
-    songreq: String
+    songidreq: u32
 }
 
-impl Default for TemplateApp {
+impl Default for PlayerApp {
     fn default() -> Self {
         Self {
             volume_slider_value: 1.0,
             song_progress_slider_value: 0.0,
-            prim_sink_handler: tools::SinkHandler::default(),
+            prim_sink_handler: sinkhandler::SinkHandler::default(),
             play_pause_button_text: "Play".to_string(),
 
+            library_handler: libraryhandler::LibraryHandler::new(),
 
             is_first_frame: true,
-            artistreq: "femtanyl".to_string(),
-            albumreq: "REACTOR".to_string(),
-            songreq: "M3 N MIN3".to_string()
+            songidreq: 0
         }
     }
 }
 
-impl TemplateApp {
+impl PlayerApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -51,7 +52,7 @@ impl TemplateApp {
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for PlayerApp {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
@@ -107,15 +108,12 @@ impl eframe::App for TemplateApp {
             if ui.button("printqueue").clicked() {
                 println!("{:#?}", (self.prim_sink_handler.get_queue()))
             }
-
-            ui.add(egui::TextEdit::singleline(&mut self.artistreq));
-            ui.add(egui::TextEdit::singleline(&mut self.albumreq));
-            ui.add(egui::TextEdit::singleline(&mut self.songreq));
             
+            ui.add(egui::DragValue::new(&mut self.songidreq));
 
             let append_button = ui.add(egui::Button::new("append to queue"));
             if append_button.clicked() {
-                self.prim_sink_handler.append_to_queue(&self.artistreq, &self.albumreq, &self.songreq);
+                self.prim_sink_handler.append_to_queue(self.library_handler.filepath_from_song_id(self.songidreq).unwrap());
             }
 
             let skip_button = ui.add(egui::Button::new("skip"));
@@ -127,6 +125,8 @@ impl eframe::App for TemplateApp {
             
             if ui.button("debug").clicked(){
                 self.prim_sink_handler.debug_dump();
+                let whatever = self.library_handler.filepath_from_song_id(self.songidreq).unwrap();
+                println!("{}", whatever)
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui)});
@@ -136,7 +136,6 @@ impl eframe::App for TemplateApp {
         
         if self.is_first_frame == true {
             tools::first_frame_setup(&mut self.prim_sink_handler, self.volume_slider_value);
-            println!("wow");
             self.is_first_frame = false
         }
 
