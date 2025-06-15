@@ -125,8 +125,8 @@ impl eframe::App for PlayerApp {
             
             if ui.button("debug").clicked(){
                 self.prim_sink_handler.debug_dump();
-                let whatever = self.library_handler.filepath_from_song_id(self.songidreq).unwrap();
-                println!("{}", whatever)
+                let whatever = self.library_handler.song_ids_from_tag(self.library_handler.tag_from_property_and_tag_id(2, 3).unwrap());
+                println!("{:#?}", whatever)
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui)});

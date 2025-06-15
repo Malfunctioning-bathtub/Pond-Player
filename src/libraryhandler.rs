@@ -1,5 +1,8 @@
 use std::collections::VecDeque;
 
+use eframe::glow::TRIANGLE_STRIP_ADJACENCY;
+use serde::de::value;
+
 
 #[derive(Debug, Clone)]
 pub enum EitherTagOrSongList {
@@ -7,12 +10,47 @@ pub enum EitherTagOrSongList {
     SongList(VecDeque<u32>)
 }
 
-#[derive(Debug, Clone)]
+impl EitherTagOrSongList {
+    pub fn vecdeque_from_songlist(song_list: EitherTagOrSongList) -> Option<VecDeque<u32>> {
+        match song_list {
+            Self::SongList(song_ids) => {
+                return Some(song_ids);
+            }
+            _ => {
+                return None;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Tag {
     ReleaseArtist(String),
     ReleaseTitle(String),
     TrackTitle(String),
     FilePath(String)
+}
+
+impl Tag {
+    pub fn to_string(self) -> Option<String> {
+        match self {
+            Self::ReleaseArtist(string) => {
+                return Some(string);
+            }
+            Self::ReleaseTitle(string) => {
+                return Some(string);
+            }
+            Self::TrackTitle(string) => {
+                return Some(string);
+            }
+            Self::FilePath(string) => {
+                return Some(string);
+            }
+            _ => {
+                return None;
+            }
+        }
+    }
 }
 
 pub struct LibraryHandler {
@@ -109,10 +147,42 @@ impl MetadataCollection {
             EitherTagOrSongList::Tag(i) => {
                 return Some(i);
             } 
-            EitherTagOrSongList::SongList(i) => {
+            _ => {
                 return None
             }
         }
+    }
+
+    pub fn song_ids_from_tag(&self, tag: Tag) -> Option<VecDeque<u32>> {  // Make into Result instead of Option
+        let tag_wrapped_in_enum: EitherTagOrSongList = EitherTagOrSongList::Tag(tag);
+        
+        match tag_wrapped_in_enum {
+            EitherTagOrSongList::Tag(property) => {
+                let i: usize;
+                match property {
+                    Tag::ReleaseArtist(_) => i = 0,
+                    Tag::ReleaseTitle(_) => i = 1,
+                    Tag::TrackTitle(_) => i = 2,
+                    Tag::FilePath(_) => i = 3
+                } 
+                return Some(MetadataCollection::song_ids_from_tag_and_property_vecdeque(property, &self.metadata_collection[i]).unwrap());
+            }
+            EitherTagOrSongList::SongList(_) => None
+        }
+    }
+    
+    pub fn song_ids_from_tag_and_property_vecdeque(req_tag: Tag, property_vecdeque: &VecDeque<VecDeque<EitherTagOrSongList>>) -> Option<VecDeque<u32>> {  // Make into Result instead of Option
+        for tag in property_vecdeque {
+            match &tag[0] {
+                EitherTagOrSongList::Tag(generic_tag) => {
+                    if generic_tag == &req_tag {
+                        return Some(EitherTagOrSongList::vecdeque_from_songlist(tag[1].clone()).unwrap());
+                    }
+                }
+                _ => return None
+            }
+        }
+        return None;
     }
 }
 
@@ -155,5 +225,13 @@ impl LibraryHandler {
                 return None;
             }
         }
+    }
+
+    pub fn song_ids_from_tag(&self, tag: Tag) -> Option<VecDeque<u32>> {
+        return self.metadata_collection.song_ids_from_tag(tag);
+    }
+
+    pub fn tag_from_property_and_tag_id(&self, property_id: u32, tag_id: u32) -> Option<Tag> {
+        return self.metadata_collection.tag_from_property_and_tag_id(property_id, tag_id)
     }
 }
