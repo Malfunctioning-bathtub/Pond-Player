@@ -1,8 +1,5 @@
-use std::collections::VecDeque;
-
-use eframe::glow::TRIANGLE_STRIP_ADJACENCY;
-use serde::de::value;
-
+use std::{collections::VecDeque};
+use log::{self, debug, error, info, trace};
 
 #[derive(Debug, Clone)]
 pub enum EitherTagOrSongList {
@@ -11,13 +8,13 @@ pub enum EitherTagOrSongList {
 }
 
 impl EitherTagOrSongList {
-    pub fn vecdeque_from_songlist(song_list: EitherTagOrSongList) -> Option<VecDeque<u32>> {
+    pub fn vecdeque_from_songlist(song_list: EitherTagOrSongList ) -> VecDeque<u32> {
+        trace!("Fetching song IDs from song list: {:?}", song_list);
         match song_list {
-            Self::SongList(song_ids) => {
-                return Some(song_ids);
-            }
-            _ => {
-                return None;
+            Self::SongList(song_ids) => song_ids,
+            Self::Tag(tag) => {
+                error!("Could not fetch song IDs from Tag: {:#?}", tag);
+                panic!("")
             }
         }
     }
@@ -32,23 +29,12 @@ pub enum Tag {
 }
 
 impl Tag {
-    pub fn to_string(self) -> Option<String> {
+    pub fn to_string(self) -> String {
         match self {
-            Self::ReleaseArtist(string) => {
-                return Some(string);
-            }
-            Self::ReleaseTitle(string) => {
-                return Some(string);
-            }
-            Self::TrackTitle(string) => {
-                return Some(string);
-            }
-            Self::FilePath(string) => {
-                return Some(string);
-            }
-            _ => {
-                return None;
-            }
+            Self::ReleaseArtist(string) => string,
+            Self::ReleaseTitle(string) => string,
+            Self::TrackTitle(string) => string,
+            Self::FilePath(string) => string
         }
     }
 }
@@ -64,6 +50,7 @@ pub struct SongTable {
 
 impl SongTable {
     pub fn new(table_path: String) -> Self {
+        info!("Constructing new SongTable from {}", table_path);
         let init_table = serde_json::from_str(&std::fs::read_to_string(table_path).unwrap()).unwrap();
         
         Self {
@@ -72,6 +59,7 @@ impl SongTable {
     }
 
     pub fn songs_from_song_ids(&self, ids: VecDeque<u32>) -> VecDeque<VecDeque<VecDeque<u32>>> {
+        trace!("Fetching songs with ids: {:#?}", ids);
         let mut return_vecdeque: VecDeque<VecDeque<VecDeque<u32>>> = VecDeque::new();
 
         for id in ids {
@@ -81,6 +69,7 @@ impl SongTable {
     }
 
     pub fn song_from_song_id(&self, id: u32) -> VecDeque<VecDeque<u32>> {
+        trace!("Fetching song with ID: {}", id); 
         return self.song_table[id.try_into().unwrap()].clone();
     }
 }
@@ -91,6 +80,7 @@ pub struct MetadataCollection {
 
 impl MetadataCollection {
     pub fn new(metadata_path: String) -> Self {
+        trace!("Constructing new MetadataCollection from {}", metadata_path);
         let json_collection: VecDeque<VecDeque<VecDeque<serde_json::Value>>> = serde_json::from_str(&std::fs::read_to_string(metadata_path).unwrap()).unwrap();
 
         let mut init_collection: VecDeque<VecDeque<VecDeque<EitherTagOrSongList>>> = VecDeque::new();
@@ -99,90 +89,75 @@ impl MetadataCollection {
         for property in json_collection {
             let mut temp_property: VecDeque<VecDeque<EitherTagOrSongList>> = VecDeque::new();
             for tag in property {
-                match property_index {
-                    0 => {
-                        let mut property_song_list_pair_vecdeque: VecDeque<EitherTagOrSongList> = VecDeque::new();
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::Tag(Tag::ReleaseArtist(serde_json::from_value(tag[0].clone()).unwrap())));
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::SongList(serde_json::from_value(tag[1].clone()).unwrap()));
-                        temp_property.push_back(property_song_list_pair_vecdeque);
-                    }
-                    1 => {
-                        let mut property_song_list_pair_vecdeque: VecDeque<EitherTagOrSongList> = VecDeque::new();
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::Tag(Tag::ReleaseTitle(serde_json::from_value(tag[0].clone()).unwrap())));
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::SongList(serde_json::from_value(tag[1].clone()).unwrap()));
-                        temp_property.push_back(property_song_list_pair_vecdeque);
-
-                    }
-                    2 => {
-                        let mut property_song_list_pair_vecdeque: VecDeque<EitherTagOrSongList> = VecDeque::new();
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::Tag(Tag::TrackTitle(serde_json::from_value(tag[0].clone()).unwrap())));
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::SongList(serde_json::from_value(tag[1].clone()).unwrap()));
-                        temp_property.push_back(property_song_list_pair_vecdeque);
-                    }
-                    3 => {
-                        let mut property_song_list_pair_vecdeque: VecDeque<EitherTagOrSongList> = VecDeque::new();
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::Tag(Tag::FilePath(serde_json::from_value(tag[0].clone()).unwrap())));
-                        property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::SongList(serde_json::from_value(tag[1].clone()).unwrap()));
-                        temp_property.push_back(property_song_list_pair_vecdeque);
-                    }
-
-                    _ => {println!("moew")}
-                }
+                let mut property_song_list_pair_vecdeque: VecDeque<EitherTagOrSongList> = VecDeque::new();
+                let tag_key = serde_json::from_value(tag[0].clone()).unwrap();
+                property_song_list_pair_vecdeque.push_back(
+                    EitherTagOrSongList::Tag(
+                        match property_index {
+                            0 => Tag::ReleaseArtist(tag_key),
+                            1 => Tag::ReleaseTitle(tag_key),
+                            2 => Tag::TrackTitle(tag_key),
+                            3 => Tag::FilePath(tag_key),
+                        
+                            _ => {
+                                error!("Property index: {} does not refer to any existing property", property_index);
+                                panic!();
+                            }
+                        }
+                    )
+                );
+                property_song_list_pair_vecdeque.push_back(EitherTagOrSongList::SongList(serde_json::from_value(tag[1].clone()).unwrap()));
+                temp_property.push_back(property_song_list_pair_vecdeque);
             }
             init_collection.push_back(temp_property);
             property_index += 1;
         }
-
-        println!("{:#?}", init_collection);
-        
 
         Self { 
             metadata_collection: init_collection
         }
     }
 
-    pub fn tag_from_property_and_tag_id(&self, property_id: u32, tag_id: u32) -> Option<Tag> {
+    pub fn tag_from_property_and_tag_id(&self, property_id: u32, tag_id: u32) -> Tag {
         let enum_tag: EitherTagOrSongList = self.metadata_collection[property_id.try_into().unwrap()][tag_id.try_into().unwrap()][0].clone();
         match enum_tag {
-            EitherTagOrSongList::Tag(i) => {
-                return Some(i);
-            } 
-            _ => {
-                return None
+            EitherTagOrSongList::Tag(tag) => {
+                return tag;
+            }
+            EitherTagOrSongList::SongList(_songlist) => {
+                error!("Cannot fetch Tag from SongList (metadata collection likely improperly formatted)");
+                panic!()
             }
         }
     }
 
-    pub fn song_ids_from_tag(&self, tag: Tag) -> Option<VecDeque<u32>> {  // Make into Result instead of Option
-        let tag_wrapped_in_enum: EitherTagOrSongList = EitherTagOrSongList::Tag(tag);
-        
-        match tag_wrapped_in_enum {
-            EitherTagOrSongList::Tag(property) => {
-                let i: usize;
-                match property {
-                    Tag::ReleaseArtist(_) => i = 0,
-                    Tag::ReleaseTitle(_) => i = 1,
-                    Tag::TrackTitle(_) => i = 2,
-                    Tag::FilePath(_) => i = 3
-                } 
-                return Some(MetadataCollection::song_ids_from_tag_and_property_vecdeque(property, &self.metadata_collection[i]).unwrap());
-            }
-            EitherTagOrSongList::SongList(_) => None
-        }
+    pub fn song_ids_from_tag(&self, tag: Tag) -> VecDeque<u32> {
+        let i: usize;
+        match tag {
+            Tag::ReleaseArtist(_) => i = 0,
+            Tag::ReleaseTitle(_) => i = 1,
+            Tag::TrackTitle(_) => i = 2,
+            Tag::FilePath(_) => i = 3
+        } 
+        return MetadataCollection::song_ids_from_tag_and_property_vecdeque(tag, &self.metadata_collection[i]);
     }
-    
-    pub fn song_ids_from_tag_and_property_vecdeque(req_tag: Tag, property_vecdeque: &VecDeque<VecDeque<EitherTagOrSongList>>) -> Option<VecDeque<u32>> {  // Make into Result instead of Option
+
+    pub fn song_ids_from_tag_and_property_vecdeque(req_tag: Tag, property_vecdeque: &VecDeque<VecDeque<EitherTagOrSongList>>) -> VecDeque<u32> {
+        trace!("Fetching Song IDs with Tag: {:?} in property: {:?}", req_tag, property_vecdeque);
         for tag in property_vecdeque {
             match &tag[0] {
                 EitherTagOrSongList::Tag(generic_tag) => {
                     if generic_tag == &req_tag {
-                        return Some(EitherTagOrSongList::vecdeque_from_songlist(tag[1].clone()).unwrap());
+                        return EitherTagOrSongList::vecdeque_from_songlist(tag[1].clone());
                     }
                 }
-                _ => return None
+                EitherTagOrSongList::SongList(song_list) => {
+                    error!("Cannot not fetch song IDs from a taglist: {:#?}", song_list);
+                    panic!();
+                }
             }
         }
-        return None;
+        return VecDeque::new();
     }
 }
 
@@ -200,7 +175,7 @@ impl LibraryHandler {
         for property in self.song_table.song_from_song_id(song_id) {
             let mut tag_list: VecDeque<Tag> = VecDeque::new();
             for tag in property {
-                tag_list.push_back(self.metadata_collection.tag_from_property_and_tag_id(property_index, tag).unwrap());
+                tag_list.push_back(self.metadata_collection.tag_from_property_and_tag_id(property_index, tag));
             }
         }
         return property_list;
@@ -209,7 +184,7 @@ impl LibraryHandler {
     pub fn metadata_tags_from_song_and_property_id(&self, song_id: u32, property_id: u32) -> Option<VecDeque<Tag>> {
         let mut tag_list: VecDeque<Tag> = VecDeque::new();
         for tag_id in self.song_table.song_from_song_id(song_id)[property_id.try_into().unwrap()].clone() {
-            tag_list.push_back(self.metadata_collection.tag_from_property_and_tag_id(property_id, tag_id).unwrap());
+            tag_list.push_back(self.metadata_collection.tag_from_property_and_tag_id(property_id, tag_id));
         }
 
         return Some(tag_list);
@@ -227,11 +202,12 @@ impl LibraryHandler {
         }
     }
 
-    pub fn song_ids_from_tag(&self, tag: Tag) -> Option<VecDeque<u32>> {
+    pub fn song_ids_from_tag(&self, tag: Tag) -> VecDeque<u32> {
+        info!("Fetching Song IDs with Tag: {:?}", tag);
         return self.metadata_collection.song_ids_from_tag(tag);
     }
 
-    pub fn tag_from_property_and_tag_id(&self, property_id: u32, tag_id: u32) -> Option<Tag> {
+    pub fn tag_from_property_and_tag_id(&self, property_id: u32, tag_id: u32) -> Tag {
         return self.metadata_collection.tag_from_property_and_tag_id(property_id, tag_id)
     }
 }

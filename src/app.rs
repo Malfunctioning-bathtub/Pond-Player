@@ -125,7 +125,7 @@ impl eframe::App for PlayerApp {
             
             if ui.button("debug").clicked(){
                 self.prim_sink_handler.debug_dump();
-                let whatever = self.library_handler.song_ids_from_tag(self.library_handler.tag_from_property_and_tag_id(2, 3).unwrap());
+                let whatever = self.library_handler.song_ids_from_tag(self.library_handler.tag_from_property_and_tag_id(2, 3));
                 println!("{:#?}", whatever)
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
