@@ -15,6 +15,8 @@ pub struct SinkHandler {
     prim_sink: rodio::Sink,
     #[serde(skip)]
     library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
+
+    backqueue:VecDeque<String>,
     
     queue: VecDeque<String>,
 }
@@ -28,7 +30,7 @@ impl Default for SinkHandler {
         let library_hashmap = serde_json::from_str(&std::fs::read_to_string("assets/library.json").unwrap()).unwrap();
 
         
-        let file = BufReader::new(File::open("D:/Coding/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
+        let file = BufReader::new(File::open("/media/mbathtub/Thingies/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
 
         let launchsource = Decoder::new(file).unwrap();
         let current_song_length = launchsource.total_duration().unwrap();
@@ -42,6 +44,7 @@ impl Default for SinkHandler {
             stream_handle: stream_handle, 
             prim_sink: launchsink, 
             library_hashmap: library_hashmap, 
+            backqueue: VecDeque::new(),
             queue: VecDeque::new() 
         }
     }
@@ -87,10 +90,20 @@ impl SinkHandler {
         self.queue.push_back(file_path);
     }
     
+    pub fn back_skip(&mut self) {
+        let temp_song_file = BufReader::new(File::open(self.backqueue.back().unwrap()).unwrap());
+        let temp_source = Decoder::new(temp_song_file).unwrap();
+        self.current_song_length = temp_source.total_duration().unwrap();
+        self.prim_sink.append(temp_source);
+        self.prim_sink.skip_one();
+        self.backqueue.pop_back();   
+    }
+
     pub fn skip(&mut self) {
         let temp_song_file = BufReader::new(File::open(self.queue.front().unwrap()).unwrap());
         let temp_source = Decoder::new(temp_song_file).unwrap();
         self.current_song_length = temp_source.total_duration().unwrap();
+        self.backqueue.push_back(self.queue.front().unwrap().clone());
         self.prim_sink.append(temp_source);
         self.prim_sink.skip_one();
         self.queue.pop_front();

@@ -116,7 +116,12 @@ impl eframe::App for PlayerApp {
                 self.prim_sink_handler.append_to_queue(self.library_handler.filepath_from_song_id(self.songidreq).unwrap());
             }
 
-            let skip_button = ui.add(egui::Button::new("skip"));
+            let back_skip_button = ui.add(egui::Button::new("<-"));
+            if back_skip_button.clicked() {
+                self.prim_sink_handler.back_skip();
+            }
+
+            let skip_button = ui.add(egui::Button::new("->"));
             if skip_button.clicked() {
                 self.prim_sink_handler.skip();
             }
