@@ -4,7 +4,7 @@
 use log;
 
 fn main() -> eframe::Result {
-    std::env::set_var("RUST_LOG", "eframe=warn, egui_glow=warn, trace");
+    std::env::set_var("RUST_LOG", "eframe=warn, egui_glow=warn, calloop=warn, trace");
     println!("meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow meow");
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 

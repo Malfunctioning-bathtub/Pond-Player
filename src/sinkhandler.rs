@@ -91,31 +91,45 @@ impl SinkHandler {
     }
     
     pub fn back_skip(&mut self) {
-        let temp_song_file = BufReader::new(File::open(self.backqueue.back().unwrap()).unwrap());
-        let temp_source = Decoder::new(temp_song_file).unwrap();
-        self.current_song_length = temp_source.total_duration().unwrap();
-        self.prim_sink.append(temp_source);
-        self.prim_sink.skip_one();
-        self.backqueue.pop_back();   
+        if let Some(_) = self.backqueue.back() {
+            let temp_song_file = BufReader::new(File::open(self.backqueue.back().unwrap()).unwrap());
+            let temp_source = Decoder::new(temp_song_file).unwrap();
+            self.current_song_length = temp_source.total_duration().unwrap();
+            self.prim_sink.append(temp_source);
+            self.prim_sink.skip_one();
+            self.backqueue.pop_back();   
+        }
+        else {
+            println!("you reached the end")
+        }
     }
 
     pub fn skip(&mut self) {
-        let temp_song_file = BufReader::new(File::open(self.queue.front().unwrap()).unwrap());
-        let temp_source = Decoder::new(temp_song_file).unwrap();
-        self.current_song_length = temp_source.total_duration().unwrap();
-        self.backqueue.push_back(self.queue.front().unwrap().clone());
-        self.prim_sink.append(temp_source);
-        self.prim_sink.skip_one();
-        self.queue.pop_front();
-    }
-
-    pub fn song_end_handler(&mut self) {
-        if self.prim_sink.empty() {
+        if let Some(_) = self.queue.front() {
             let temp_song_file = BufReader::new(File::open(self.queue.front().unwrap()).unwrap());
             let temp_source = Decoder::new(temp_song_file).unwrap();
             self.current_song_length = temp_source.total_duration().unwrap();
             self.prim_sink.append(temp_source);
+            self.prim_sink.skip_one();
             self.queue.pop_front();
+        }
+        else {
+            println!("you reached the end")
+        }
+    }
+
+    pub fn song_end_handler(&mut self) {
+        if self.prim_sink.empty() {
+            if let Some(_) = self.queue.front() {
+                let temp_song_file = BufReader::new(File::open(self.queue.front().unwrap()).unwrap());
+                let temp_source = Decoder::new(temp_song_file).unwrap();
+                self.current_song_length = temp_source.total_duration().unwrap();
+                self.prim_sink.append(temp_source);
+                self.queue.pop_front();
+            }
+            else {
+                println!("you reached the end")
+            }
         }
     }
     
