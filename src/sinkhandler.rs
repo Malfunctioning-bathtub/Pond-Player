@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, VecDeque}, time::Duration, io::BufReader, fs::File};
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::{source::{self, Empty}, Decoder, OutputStream, OutputStreamHandle, Sample, Sink, Source};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -30,9 +30,8 @@ impl Default for SinkHandler {
         let library_hashmap = serde_json::from_str(&std::fs::read_to_string("assets/library.json").unwrap()).unwrap();
 
         
-        let file = BufReader::new(File::open("/media/mbathtub/Thingies/Music/underscores/fishmonger/underscores - fishmonger - 09 The fish song.wav").unwrap());
 
-        let launchsource = Decoder::new(file).unwrap();
+        let launchsource: Empty<f32> = Empty::new();
         let current_song_length = launchsource.total_duration().unwrap();
 
         launchsink.append(launchsource);
