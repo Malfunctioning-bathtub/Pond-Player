@@ -126,6 +126,12 @@ impl eframe::App for PlayerApp {
                 self.prim_sink_handler.skip();
             }
 
+            let clear_queue_button = ui.add(egui::Button::new("clear queue"));
+            if clear_queue_button.clicked() {
+                self.prim_sink_handler.clear_queue();
+            }
+
+
             ui.separator();
             
             if ui.button("debug").clicked(){

@@ -13,8 +13,6 @@ pub struct SinkHandler {
     stream_handle: OutputStreamHandle,
     #[serde(skip)]
     prim_sink: rodio::Sink,
-    #[serde(skip)]
-    library_hashmap: HashMap<String, HashMap<String, HashMap<String, String>>>,
 
     backqueue:VecDeque<String>,
     
@@ -26,8 +24,6 @@ impl Default for SinkHandler {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let launchsink = Sink::try_new(&stream_handle).unwrap();
         launchsink.pause();
-
-        let library_hashmap = serde_json::from_str(&std::fs::read_to_string("assets/library.json").unwrap()).unwrap();
 
         
 
@@ -42,7 +38,6 @@ impl Default for SinkHandler {
             _stream: _stream, 
             stream_handle: stream_handle, 
             prim_sink: launchsink, 
-            library_hashmap: library_hashmap, 
             backqueue: VecDeque::new(),
             queue: VecDeque::new() 
         }
@@ -115,6 +110,10 @@ impl SinkHandler {
         else {
             println!("you reached the end")
         }
+    }
+
+    pub fn clear_queue(&mut self) {
+        self.queue.clear();
     }
 
     pub fn song_end_handler(&mut self) {

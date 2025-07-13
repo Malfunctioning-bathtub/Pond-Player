@@ -164,8 +164,8 @@ impl MetadataCollection {
 impl LibraryHandler {
     pub fn new() -> Self {
         Self { 
-            metadata_collection: MetadataCollection::new("assets/metadatacollection.json".to_string()),
-            song_table: SongTable::new("assets/songtable.json".to_string())
+            metadata_collection: MetadataCollection::new("./assets/metadatacollection.json".to_string()),
+            song_table: SongTable::new("./assets/songtable.json".to_string())
         }
     }
 
