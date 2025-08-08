@@ -12,14 +12,16 @@ pub struct PlayerApp {
     volume_slider_value: f32,
     song_progress_slider_value: f32,
     play_pause_button_text: String,
-    
+
     #[serde(skip)]
     library_handler: libraryhandler::LibraryHandler,
 
     #[serde(skip)]
     is_first_frame: bool,
-    
-    songidreq: u32
+
+    song_id_in_album: u32,
+    #[serde(skip)]
+    requested_album: String
 }
 
 impl Default for PlayerApp {
@@ -30,10 +32,11 @@ impl Default for PlayerApp {
             prim_sink_handler: sinkhandler::SinkHandler::default(),
             play_pause_button_text: "Play".to_string(),
 
-            library_handler: libraryhandler::LibraryHandler::new(),
+            library_handler: libraryhandler::LibraryHandler::new("assets/metadatacollection.json"),
 
             is_first_frame: true,
-            songidreq: 0
+            song_id_in_album: 0,
+            requested_album: "".to_string()
         }
     }
 }
@@ -61,7 +64,7 @@ impl eframe::App for PlayerApp {
     /// Called every time the window is repainted
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         //Top menu bar containing quit option and theme toggle
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| { 
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 //file menu (idk why quit is in this but i dont have anywhere else to put it yet)
                 ui.menu_button("File", |ui| {
@@ -85,7 +88,7 @@ impl eframe::App for PlayerApp {
             // conversion from logarithmic to to multiplicative units
             if volslider.changed() {
                 self.prim_sink_handler.set_volume(self.volume_slider_value);
-            } 
+            }
 
             let play_pause_button = ui.add(egui::Button::new(&self.play_pause_button_text));
             //play/pause button
@@ -93,7 +96,7 @@ impl eframe::App for PlayerApp {
                 self.prim_sink_handler.on_play_pause_button_clicked();
             }
 
-            let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.prim_sink_handler.get_current_song_length()).as_millis() as f32) 
+            let song_progress_slider = ui.add(egui::Slider::new(&mut self.song_progress_slider_value, 0.0..=(self.prim_sink_handler.get_current_song_length()).as_millis() as f32)
             .trailing_fill(true)
             .text("Progress")
             .show_value(false)
@@ -101,19 +104,27 @@ impl eframe::App for PlayerApp {
 
             if song_progress_slider.drag_stopped() {
                 self.prim_sink_handler.handler_try_seek(Duration::from_millis(self.song_progress_slider_value as u64))
-            } 
+            }
 
             self.song_progress_slider_value = self.prim_sink_handler.get_song_progress().as_millis() as f32;
 
             if ui.button("printqueue").clicked() {
                 println!("{:#?}", (self.prim_sink_handler.get_queue()))
             }
-            
-            ui.add(egui::DragValue::new(&mut self.songidreq));
+
+            ui.add(egui::TextEdit::singleline(&mut self.requested_album));
+
+            ui.add(egui::DragValue::new(&mut self.song_id_in_album));
 
             let append_button = ui.add(egui::Button::new("append to queue"));
             if append_button.clicked() {
-                self.prim_sink_handler.append_to_queue(self.library_handler.filepath_from_song_id(self.songidreq).unwrap());
+                let album_tracks = self.library_handler.release_titles.get(self.requested_album.as_str());
+                let index = self.song_id_in_album as usize;
+                match album_tracks {
+                    Some(tracks) if index < tracks.len() => self.prim_sink_handler.append_to_queue(tracks[index].file_path.clone()),
+                    Some(_) => println!("that album exists but there arent that many songs in it"),
+                    None => println!("that album dain't exist buddy boy"),
+                }
             }
 
             let back_skip_button = ui.add(egui::Button::new("<-"));
@@ -133,19 +144,17 @@ impl eframe::App for PlayerApp {
 
 
             ui.separator();
-            
+
             if ui.button("debug").clicked(){
                 self.prim_sink_handler.debug_dump();
-                let whatever = self.library_handler.song_ids_from_tag(self.library_handler.tag_from_property_and_tag_id(2, 3));
-                println!("{:#?}", whatever)
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui)});
-            
-            
+
+
         });
-        
-        if self.is_first_frame == true {
+
+        if self.is_first_frame {
             tools::first_frame_setup(&mut self.prim_sink_handler, self.volume_slider_value);
             self.is_first_frame = false
         }
